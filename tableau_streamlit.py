@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 from PIL import Image
+import plotly.express as px
 im = Image.open('ASU.jpg')
 st.set_page_config(page_title='Ben Reeder CIS 450 Ind. Project', page_icon=im, layout="wide", initial_sidebar_state='expanded')
 st.title('Ben Reeder CIS 450 Individual Project - Restaurants and Consumer Ratings')
@@ -10,7 +11,7 @@ st.markdown(f"""<style>.reportview-container .main .block-container{{{max_width_
      
     
 st.sidebar.title('Nagivation')
-options = st.sidebar.radio('Pages',options = ['Introduction','Data Cleaning','Restaurant Data EDA Dashboard','Customer Data EDA Dashboard','Restaurant/Customer Features/Ratings','Logistic Regression','Recommendation System'])
+options = st.sidebar.radio('Pages',options = ['Introduction','Data Cleaning','Restaurant Data EDA Dashboard','Customer Data EDA Dashboard','Logistic Regression','Decision Tree', 'Customer Ratings Analysis','Restaurant Ratings Analysis'])
 st.sidebar.info('My name is Ben Reeder and I am currently studying Data Analytics at Arizona State University. This project is a part of the Data Analytics Capstone course at ASU.')
 
 
@@ -28,7 +29,7 @@ def intro():
     st.markdown('* General visualizations that show exploratory data analysis on the customers in the dataset')
     st.markdown('* Visualizations pertaining to particular attributes about either restaurants or customers and how they relate to the final rating given')
     st.markdown('* Logistic regression model that will predict whether a rating will be Satisfactory or Unsatisfactory based on chosen fields')
-    st.markdown('* Recommender system that can recommend a restaurant based off of given consumer preferences')
+    st.markdown('* Decision Tree that will be basis for user interactive experience that  a restaurant based off of given consumer preferences')
 def clean():
     st.title('Data Cleaning')
 
@@ -228,16 +229,181 @@ def cust():
     st.markdown('* Highest payment method is again cash')
     st.markdown('* Few consumers who classify as those who like to dress elegantly, most are categorized as informal, formal, or no preference ')
 
-def rat():
-    st.title('Restaurant/Customer Features/Ratings')
-    st.subheader('In progress...')
+def cus_ratings():
+    st.title('Customer Ratings Analysis')
+    st.subheader('Tableau in progress')
+def res_ratings():
+    st.title('Restaurant Ratings Analysis')
+    st.subheader('Tableau in progress')
 def logistic():
-    st.title('Logistic Regression to predict Satisfactory/Unsatisfactory')
-    st.subheader('In progress...')
-def rec_sys():
-    st.title('Recommendation System')
-    st.subheader('In progress...')
+    st.title('Logistic Regression to predict Satisfactory/Unsatisfactory Customer Experience')
+    st.subheader('Preprocessing/Testing Models')
+    cus_res = pd.read_csv('Customers and Restuarants CSV.csv',encoding = 'latin')
+    st.text('Initial Dataframe')
+    st.dataframe(cus_res)
+    cus_res = pd.read_csv('Customers and Restuarants CSV.csv',encoding = 'latin')
+    cus_res['cus_res_rating_bin'] = 0
+    cus_res.loc[cus_res['cus_res_rating'] >= 1, 'cus_res_rating_bin'] = 1
 
+    X = cus_res[['user_avg_rating','user_avg_food_rating','user_avg_service_rating','user_avg_rating_bin', 'res_avg_rating', 'res_avg_food', 'res_avg_service', 'res_avg_rating_bin']]
+    y = cus_res['cus_res_rating_bin']
+    from sklearn.preprocessing import StandardScaler
+
+    
+    
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state= 123)
+    
+    from sklearn.linear_model import LogisticRegression
+    logreg = LogisticRegression(max_iter=400)
+    logreg.fit(X_train, y_train)
+    
+    
+
+    st.code("""
+    #Creating new column for Satisfactory or Unsatisfactory 
+    #If rating is 0, Unsatisfactory, else Satisfactory
+    cus_res = pd.read_csv('Customers and Restuarants CSV.csv',encoding = 'latin')
+    cus_res['cus_res_rating_bin'] = 0
+    cus_res.loc[cus_res['cus_res_rating'] >= 1, 'cus_res_rating_bin'] = 1""",'python')
+
+    st.code("""
+    # First attempt at using just the average ratings to see what the results yielded
+
+    X = cus_res[['user_avg_rating','user_avg_food_rating','user_avg_service_rating','user_avg_rating_bin', 'res_avg_rating', 'res_avg_food', 'res_avg_service', 'res_avg_rating_bin']]
+    y = cus_res['cus_res_rating_bin']
+    
+    #Data is already "scaled" from 0-2 range, no need to scale further
+    
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X_standardized, y, test_size = 0.2, random_state= 123)
+    
+    from sklearn.linear_model import LogisticRegression
+    logreg = LogisticRegression(max_iter=400)
+    logreg.fit(X_train, y_train)
+    print('Accuracy Score:', round((logreg.score(X_test, y_test) * 100),2),'%')""",'python')
+    st.write('Accuracy Score:', round((logreg.score(X_test, y_test) * 100),2),'%')
+
+    st.text('Checked the coeffecients of model')
+    coef = logreg.coef_[0]
+    sorted_coef_df = pd.DataFrame(coef,index = X.columns,columns = ['Coeffecients']).sort_values(by = "Coeffecients",ascending = False)
+    st.write(sorted_coef_df)
+    st.write('From this, we can see that the customers and the average ratings they gave had by far the highest impact')
+    st.subheader('However, there were some issues that needed to be mitigated')
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+    vif = pd.DataFrame()
+    vif['VIF'] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+    vif['variable'] = X.columns
+    st.text('All of the VIF values were extremely high, should be closer to 5')
+    st.dataframe(vif)
+    st.text('Also noticed that many of the variables have high correlation, especially the ones related to User ratings')
+    st.plotly_chart(px.imshow(cus_res.corr(),title='Heatmap of Customer/Restaurant Features',color_continuous_scale='reds',width = 1000,height = 750,labels = {'color': True}))
+
+    st.code("""
+    #Experimented with multiple different X parameters before settling on just the User's Average Rating and the Restaurant's Average Rating
+    X = cus_res[['user_avg_rating', 'res_avg_rating']]
+    y = cus_res['cus_res_rating_bin']
+    X_train, X_test, y_train, y_test = train_test_split(X_standardized, y, test_size = 0.2, random_state= 123)
+    logreg = LogisticRegression(max_iter=400)
+
+    logreg.fit(X_train, y_train)
+
+    print('Accuracy Score:', round((logreg.score(X_test, y_test) * 100),2),'%')""",'python')
+    X = cus_res[['user_avg_rating', 'res_avg_rating']]
+    y = cus_res['cus_res_rating_bin']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state= 123)
+    logreg = LogisticRegression(max_iter=400)
+
+    logreg.fit(X_train, y_train)
+
+    st.write('Accuracy Score:', round((logreg.score(X_test, y_test) * 100),2),'%')
+    st.write('Check Coeffecients')
+    coef = logreg.coef_[0]
+    sorted_coef_df = pd.DataFrame(coef,index = X.columns,columns = ['Coeffecients']).sort_values(by = "Coeffecients",ascending = False)
+    st.write(sorted_coef_df)
+    vif = pd.DataFrame()
+    vif['VIF'] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+    vif['variable'] = X.columns
+    st.text('Check VIF values')
+    st.write(vif)
+    st.text('Check independent variable correlation')
+    st.write(X.corr())
+    st.text('VIF values are a little high, but correlation between variables is acceptable meaning the use of these variables are acceptable')
+    st.subheader('Result is a logistic regression model that is able to predict whether or not a customer will find a restaurant satisfactory/unsatisfactory based on just the average rating the customer gives and the restaurant gets at ~ 87%')
+    st.text('Will do further analysis and focus on what types of customers give the best ratings')
+def rec_sys():
+    st.title('Decision Tree')
+    st.subheader('Initial Unpruned Decision Tree')
+    st.code("""
+    from sklearn.tree import DecisionTreeClassifier
+    tree = DecisionTreeClassifier(random_state = 123)
+    tree.fit(X_train, y_train)
+    print('Accuracy on the training set: ',round((tree.score(X_train, y_train) * 100),2),'%')
+    y_pred = tree.predict(X_test)
+    cus_res = pd.read_csv('Customers and Restuarants CSV.csv',encoding = 'latin')
+    print('Accuracy on the test set: ', round((accuracy_score(y_pred, y_test) *100),2),'%')""",'python')
+    
+    from sklearn.tree import DecisionTreeClassifier
+    tree = DecisionTreeClassifier(random_state = 123)
+    from sklearn.model_selection import train_test_split
+    cus_res = pd.read_csv('Customers and Restuarants CSV.csv',encoding = 'latin')
+    cus_res['cus_res_rating_bin'] = 0
+    cus_res.loc[cus_res['cus_res_rating'] >= 1, 'cus_res_rating_bin'] = 1
+    X = cus_res[['user_avg_rating', 'res_avg_rating']]
+    y = cus_res['cus_res_rating_bin']
+    from sklearn.metrics import accuracy_score
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2,random_state = 0 )
+    tree.fit(X_train, y_train)
+    cus_res = pd.read_csv('Customers and Restuarants CSV.csv',encoding = 'latin')
+    st.write('Accuracy on the training set: ',round((tree.score(X_train, y_train) * 100),2),'%')
+    y_pred = tree.predict(X_test)
+    st.write('Accuracy on the test set: ', round((accuracy_score(y_pred, y_test) *100),2),'%')
+    st.subheader('Pruned Decision Tree')
+    st.code("""
+    tree_pruned = DecisionTreeClassifier(max_depth = 2, random_state = 0)
+    tree_pruned.fit(X_train,y_train)
+   
+    y_pruned_pred = tree_pruned.predict(X_test)
+    print('Accuracy on the training set: {:.3f}'.format(tree_pruned.score(X_train, y_train)*100))
+    print('Accuracy on the test set: {:.3f}'.format(accuracy_score(y_pruned_pred, y_test)*100))""",'python')
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2,random_state = 0 )
+
+    tree_pruned = DecisionTreeClassifier(max_depth = 2, random_state = 0)
+    tree_pruned.fit(X_train,y_train)
+    y_pruned_pred = tree_pruned.predict(X_test)
+    st.write('Accuracy on the pruned training set:', round((tree_pruned.score(X_train, y_train) *100),2),'%')
+    st.write('Accuracy on the pruned test set:', round((accuracy_score(y_pruned_pred, y_test)* 100),2),'%')
+    
+    from sklearn.tree import export_graphviz
+    dot_data = export_graphviz(tree_pruned, class_names=['Unsatisfactory','Satisfactory'],
+                           feature_names= ['User Average Rating','Restaurant Average Rating'],
+                           filled = True,
+                           out_file = None)
+
+    
+    d_tree = st.checkbox('Show Decision Tree')
+    if d_tree:
+
+        st.graphviz_chart(dot_data)
+    else:
+        pass
+    st.header('User Interaction with Decision Tree Parameters')
+    cus_rating = st.number_input('Average Customer Rating (0-2, can be a decimal)',min_value=0.0,max_value=2.0,step = .1)
+    res_rating = st.number_input('Average Restaurant Rating (0-2, can be a decimal)',min_value=0.0,max_value=2.0,step = .1)
+    if st.button('Run'):
+
+        if cus_rating <= .525:
+            if cus_rating <= .335:
+                st.write(round(100/104 * 100 ,2),'% of customers rated a restuarant as unsatisfactory')
+            else:
+                st.write(round(13/22 * 100 ,2),  '% of customers rated a restuarant as unsatisfactory')
+        else:
+            if res_rating <= .905:
+                st.write(round(80/113 * 100 ,2),  '% of customers rated a restuarant as satisfactory')
+            else:
+                st.write(round(632/689 * 100 ,2),  '% of customers rated a restuarant as satisfactory')
+    
 if options == 'Introduction':
     intro()
 
@@ -246,13 +412,14 @@ elif options == 'Restaurant Data EDA Dashboard':
 
 elif options == 'Customer Data EDA Dashboard':
     cust()
-elif options == 'Restaurant/Customer Features/Ratings':
-    rat()
-
+elif options == 'Customer Ratings Analysis':
+    cus_ratings()
+elif options == 'Restaurant Ratings Analysis':
+    res_ratings()
 elif options == 'Data Cleaning':
     clean()
 elif options == 'Logistic Regression':
     logistic()
-elif options == 'Recommendation System':
+elif options == 'Decision Tree':
     rec_sys()
 
