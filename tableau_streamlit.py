@@ -410,9 +410,7 @@ def rec_sys():
     y_pruned_pred = tree_pruned.predict(X_test)
     st.write('Accuracy on the pruned training set:', round((tree_pruned.score(X_train, y_train) *100),2),'%')
     st.write('Accuracy on the pruned test set:', round((accuracy_score(y_pruned_pred, y_test)* 100),2),'%')
-    from sklearn.metrics import plot_roc_curve
-
-    roc = plot_roc_curve(tree_pruned, X_test, y_test)
+    
     st.subheader('ROC Curve')
     st.image('roc.png')
     from sklearn.tree import export_graphviz
