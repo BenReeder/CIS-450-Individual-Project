@@ -362,6 +362,8 @@ def logistic():
     st.text('Check independent variable correlation')
     st.write(X.corr())
     st.text('VIF values are a little high, but correlation between variables is acceptable meaning the use of these variables are acceptable')
+    st.text('ROC Curve')
+    st.image('roc_log.png')
     st.subheader('Result is a logistic regression model that is able to predict whether or not a customer will find a restaurant satisfactory/unsatisfactory based on just the average rating the customer gives and the restaurant gets at ~ 87%')
     st.text('Will do further analysis and focus on what types of customers give the best ratings')
 def rec_sys():
@@ -408,7 +410,11 @@ def rec_sys():
     y_pruned_pred = tree_pruned.predict(X_test)
     st.write('Accuracy on the pruned training set:', round((tree_pruned.score(X_train, y_train) *100),2),'%')
     st.write('Accuracy on the pruned test set:', round((accuracy_score(y_pruned_pred, y_test)* 100),2),'%')
-    
+    from sklearn.metrics import plot_roc_curve
+
+    roc = plot_roc_curve(tree_pruned, X_test, y_test)
+    st.subheader('ROC Curve')
+    st.image('roc.png')
     from sklearn.tree import export_graphviz
     dot_data = export_graphviz(tree_pruned, class_names=['Unsatisfactory','Satisfactory'],
                            feature_names= ['User Average Rating','Restaurant Average Rating'],
